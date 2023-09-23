@@ -121,7 +121,7 @@ res <- g |>
 
 print(res, n=100)
 
-write.csv(res, file="results.csv", quote=FALSE, row.names=FALSE)
+# write.csv(res, file="results.csv", quote=FALSE, row.names=FALSE)
 
 library(ggplot2)
 library(ggrepel)
@@ -130,8 +130,10 @@ res |>
   mutate(label = paste0(de_gene, ", ", round(padj,3))) |>
   ggplot(aes(tss_dist, pb_ave_count, col=disease, shape=type, label=label)) +
   geom_point(size=2) +
+  geom_curve(aes(x = tss_dist, y = pb_ave_count,
+                 xend = 0, yend = pb_ave_count),
+             arrow = arrow(length = unit(.1, "inch"))) +
   geom_text_repel(show.legend=FALSE) +
   xlab("distance to DE gene TSS") +
   ylab("pseudobulk average count") +
   scale_y_log10(limits=c(1,1e5))
-
