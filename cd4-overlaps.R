@@ -107,13 +107,18 @@ gwas <- gwas |>
 ## overlap DE genes and GWAS data ##
 ####################################
 
+
+load("intermediate.rda")
+
 library(plyranges)
 library(dplyr)
 
 res <- g |>
   filter(padj < .1) |>
   join_overlap_inner(gwas, maxgap=5e4) |>
-  mutate(tss_dist = ifelse(strand == "+", pos - start, end - pos)) |>
+  anchor_5p() |>
+  mutate(width=1) |>
+  mutate(tss_dist = (pos - start) * as.numeric(paste0(strand,1))) |>
   as_tibble() |>
   dplyr::select(disease, chr=seqnames, de_gene=gene, gwas_gene, padj,
          pb_ave_count, rsid, type, tss_dist) |>
@@ -125,15 +130,32 @@ print(res, n=100)
 
 library(ggplot2)
 library(ggrepel)
+
+res <- res |>
+  mutate(disease = toupper(disease)) |>
+  rename(SNP_type = type)
+
+res_distinct <- res |>
+  filter(de_gene == gwas_gene) |>
+  distinct(de_gene, .keep_all=TRUE) |>
+  mutate(x=0)
+
 res |>
   filter(de_gene == gwas_gene) |>
-  mutate(label = paste0(de_gene, ", ", round(padj,3))) |>
-  ggplot(aes(tss_dist, pb_ave_count, col=disease, shape=type, label=label)) +
-  geom_point(size=2) +
+  ggplot(aes(tss_dist, pb_ave_count, col=disease, shape=SNP_type)) +
+  geom_point(size=3) +
   geom_curve(aes(x = tss_dist, y = pb_ave_count,
                  xend = 0, yend = pb_ave_count),
-             arrow = arrow(length = unit(.1, "inch"))) +
-  geom_text_repel(show.legend=FALSE) +
-  xlab("distance to DE gene TSS") +
+             arrow = arrow(length = unit(.1, "inch")),
+             show.legend=FALSE) +
+  geom_text_repel(data = res_distinct,
+                  aes(x, pb_ave_count, label=de_gene),
+                  nudge_y = c(.25, 0, 0, 0, 0, 0),
+                  nudge_x = 5e3 * c(-1,-1,1,-1,-1,-1),
+                  min.segment.length = .2,
+                  point.padding = .5,
+                  box.padding = .8,
+                  show.legend = FALSE) +
+  xlab("distance from SNP to gene TSS") +
   ylab("pseudobulk average count") +
   scale_y_log10(limits=c(1,1e5))
