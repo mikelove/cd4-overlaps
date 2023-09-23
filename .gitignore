@@ -1,3 +1,4 @@
 *.rds
 *.xlsx
 *.csv
+.DS_store
