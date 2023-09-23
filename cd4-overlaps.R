@@ -11,8 +11,8 @@ library(tidyr)
 
 gene_tab <- se |>
   pivot_transcript() |>
-  mutate(log10_exprs = log10(rowMeans(assay(se, "counts_scaled")) + 1)) |>
-  select(gene=.feature, padj = P_sex_adjusted___cd4.naive, log10_exprs) |>
+  mutate(pb_ave_count = rowMeans(assay(se, "counts_scaled"))) |>
+  dplyr::select(gene=.feature, padj = P_sex_adjusted___cd4.naive, pb_ave_count) |>
   drop_na()
 
 ######################
@@ -31,7 +31,7 @@ g <- g |>
                        keys=gene_id,
                        column="SYMBOL",
                        keytype="ENTREZID")) |>
-  select(gene, entrez=gene_id)
+  plyranges::select(gene, entrez=gene_id)
 
 g <- g |>
   filter(gene %in% gene_tab$gene)
@@ -53,7 +53,7 @@ names(csvs) <- diseases
 
 library(GenomeInfoDb)
 ms <- csvs[["MS"]] |>
-  select(seqnames=Chromosome,
+  plyranges::select(seqnames=Chromosome,
          start=`Position (hg19)`,
          gene=`Proximal Gene(s)`,
          type=Type,
@@ -62,7 +62,7 @@ ms <- csvs[["MS"]] |>
   as_granges()
 
 ra <- csvs[["RA"]] |>
-  select(seqnames=`Chr.`,
+  plyranges::select(seqnames=`Chr.`,
          start=Position,
          gene=`Gene name`,
          type=Gene,
@@ -71,7 +71,7 @@ ra <- csvs[["RA"]] |>
   as_granges()
 
 sle <- csvs[["SLE"]] |>
-  select(seqnames=Chr,
+  plyranges::select(seqnames=Chr,
          start=Pos,
          gene=Gene,
          type=Annotation,
@@ -99,19 +99,39 @@ table(gwas$type, gwas$disease)
 
 gwas <- gwas |>
   mutate(pos = start, gwas_gene=gene) |>
-  select(-gene)
+  plyranges::select(-gene)
 
-save(g, gwas, file="intermediate.rda")
+# save(g, gwas, file="intermediate.rda")
+
+####################################
+## overlap DE genes and GWAS data ##
+####################################
+
+library(plyranges)
+library(dplyr)
 
 res <- g |>
   filter(padj < .1) |>
   join_overlap_inner(gwas, maxgap=5e4) |>
   mutate(tss_dist = ifelse(strand == "+", pos - start, end - pos)) |>
   as_tibble() |>
-  select(disease, chr=seqnames, de_gene=gene, gwas_gene, padj,
-         log10_exprs, rsid, type, tss_dist) |>
+  dplyr::select(disease, chr=seqnames, de_gene=gene, gwas_gene, padj,
+         pb_ave_count, rsid, type, tss_dist) |>
   arrange(disease, chr) 
 
 print(res, n=100)
 
 write.csv(res, file="results.csv", quote=FALSE, row.names=FALSE)
+
+library(ggplot2)
+library(ggrepel)
+res |>
+  filter(de_gene == gwas_gene) |>
+  mutate(label = paste0(de_gene, ", ", round(padj,3))) |>
+  ggplot(aes(tss_dist, pb_ave_count, col=disease, shape=type, label=label)) +
+  geom_point(size=2) +
+  geom_text_repel(show.legend=FALSE) +
+  xlab("distance to DE gene TSS") +
+  ylab("pseudobulk average count") +
+  scale_y_log10(limits=c(1,1e5))
+
