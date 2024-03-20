@@ -67,6 +67,7 @@ gwas_for_plot <- gwas_for_plot |>
            is.na(score) ~ "no",
            TRUE ~ "yes")))
 
+
 pageCreate(width = 5, height = 3)
 manh <- plotManhattan(
   data = gwas_for_plot, assembly = "hg38",
@@ -77,6 +78,7 @@ annoGenomeLabel(plot = manh, x = 0.5,
                 y = 2.5, fontsize=8)
 annoYaxis(plot = manh, at = 0:10 * 5,
           axisLine = TRUE, fontsize = 8)
+
 
 # try again with cCRE overlap coloring
 mycolor <- function(n) RColorBrewer::brewer.pal(3,"Dark2")[1:n]
