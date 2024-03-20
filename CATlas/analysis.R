@@ -62,15 +62,39 @@ gwas_for_plot <- gwas_for_plot |>
   as_tibble() |>
   dplyr::rename(pos=start) |>
   mutate(chrom = as.character(seqnames)) |>
-  mutate(p = pmax(pvalue, 1e-50))
+  mutate(p = pmax(pvalue, 1e-50)) |>
+  mutate(ccre = factor(case_when(
+           is.na(score) ~ "no",
+           TRUE ~ "yes")))
 
 pageCreate(width = 5, height = 3)
 manh <- plotManhattan(
   data = gwas_for_plot, assembly = "hg38",
-  fill = c("grey30","grey70"), sigLine = TRUE,
+  fill = c("grey70","cornflowerblue"), sigLine = TRUE,
   x = 0.5, y = 0.5, width = 4, height = 2,
 )
 annoGenomeLabel(plot = manh, x = 0.5,
                 y = 2.5, fontsize=8)
 annoYaxis(plot = manh, at = 0:10 * 5,
           axisLine = TRUE, fontsize = 8)
+
+# try again with cCRE overlap coloring
+mycolor <- function(n) RColorBrewer::brewer.pal(3,"Dark2")[1:n]
+pageCreate(width = 5, height = 3, showGuides = FALSE)
+manh <- plotManhattan(
+  data = gwas_for_plot, assembly = "hg38",
+  fill = colorby("ccre",
+                 palette=mycolor),
+  sigLine = TRUE,
+  x = 0.5, y = 0.5, width = 4, height = 2,
+)
+annoGenomeLabel(plot = manh, x = 0.5,
+                y = 2.5, fontsize=8)
+annoYaxis(plot = manh, at = 0:10 * 5,
+          axisLine = TRUE, fontsize = 8)
+plotLegend(
+  legend = c("no", "yes"),
+  fill = mycolor(2),
+  x = 3.5, y = .5, width=1, height=.5,
+  pch = c(20,20), border = TRUE
+)
