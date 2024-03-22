@@ -146,9 +146,14 @@ gwas |>
 
 ```{r}
 gwas |>
+  join_overlap_inner(ccre_small, maxgap=1e4)
+```
+
+```{r}
+gwas |>
   join_overlap_left(ccre_small, maxgap=1e4) |>
   filter(!duplicated(snp)) |>
-  summarize(nhit = sum(is.na(score)))
+  summarize(nhit = sum(!is.na(score)))
 ```
 
 # `plotgardener`
@@ -276,7 +281,7 @@ gwas_and_matched <- bind_ranges(
 
 ```{r}
 gwas_and_matched |>
-  join_overlap_left(ccre, maxgap=1e4) |>
+  join_overlap_left(ccre_small, maxgap=1e4) |>
   group_by(origin) |>
   summarize(hits = sum(!is.na(score)))
 ```
