@@ -2,4 +2,6 @@
 *.xlsx
 *.csv
 *.gz
+*.rda
 .DS_store
+.Rproj.user

@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.3.353">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Genomic overlap stats with plyranges</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="analysis_files/libs/clipboard/clipboard.min.js"></script>
+<script src="analysis_files/libs/quarto-html/quarto.js"></script>
+<script src="analysis_files/libs/quarto-html/popper.min.js"></script>
+<script src="analysis_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="analysis_files/libs/quarto-html/anchor.min.js"></script>
+<link href="analysis_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="analysis_files/libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="analysis_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="analysis_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="analysis_files/libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+
+
+<link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+<div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+  <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#task" id="toc-task" class="nav-link active" data-scroll-target="#task">task</a></li>
+  <li><a href="#setup" id="toc-setup" class="nav-link" data-scroll-target="#setup">setup</a></li>
+  <li><a href="#read-in-tabular-data" id="toc-read-in-tabular-data" class="nav-link" data-scroll-target="#read-in-tabular-data">read in tabular data</a></li>
+  <li><a href="#read-in-range-data" id="toc-read-in-range-data" class="nav-link" data-scroll-target="#read-in-range-data">read in range data</a></li>
+  <li><a href="#some-overlap-stats" id="toc-some-overlap-stats" class="nav-link" data-scroll-target="#some-overlap-stats">some overlap stats</a></li>
+  <li><a href="#plotgardener" id="toc-plotgardener" class="nav-link" data-scroll-target="#plotgardener"><code>plotgardener</code></a></li>
+  <li><a href="#plot-1" id="toc-plot-1" class="nav-link" data-scroll-target="#plot-1">plot #1</a></li>
+  <li><a href="#plot-2" id="toc-plot-2" class="nav-link" data-scroll-target="#plot-2">plot #2</a></li>
+  <li><a href="#matching-with-nullranges" id="toc-matching-with-nullranges" class="nav-link" data-scroll-target="#matching-with-nullranges">matching with <code>nullranges</code></a></li>
+  </ul>
+</nav>
+</div>
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Genomic overlap stats with <code>plyranges</code></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+</header>
+
+<section id="task" class="level1">
+<h1>task</h1>
+<p>Are Type 1 diabetes GWAS loci near to CD4+ accessibility peaks?</p>
+<p>We download T1 lymphocyte 2 (CD4+) cells from CATlas:</p>
+<p><a href="http://catlas.org/humanenhancer/" class="uri">http://catlas.org/humanenhancer/</a></p>
+<blockquote class="blockquote">
+<p>Zhang K, et al.&nbsp; A single-cell atlas of chromatin accessibility in the human genome. Cell. 2021 Nov 24;184(24):5985-6001.e19. doi: <a href="https://doi.org/10.1016/j.cell.2021.10.024" class="uri">https://doi.org/10.1016/j.cell.2021.10.024</a>. PMID: 34774128; PMCID: PMC8664161.</p>
+</blockquote>
+<p>We then download Type I diabetes GWAS loci from GWAS Catalog:</p>
+<p><a href="https://www.ebi.ac.uk/gwas/efotraits/MONDO_0005147" class="uri">https://www.ebi.ac.uk/gwas/efotraits/MONDO_0005147</a></p>
+<p>Finally, Pat Sullivan provides metadata on the genome in 1kb bins.</p>
+</section>
+<section id="setup" class="level1">
+<h1>setup</h1>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(here)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(readr)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>bindata_file <span class="ot">&lt;-</span> <span class="st">"bindata.1000.hg38.tsv.gz"</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>gwas_tab_file <span class="ot">&lt;-</span> <span class="st">"gwas-t1d-031824-EFO_0009756.tsv.gz"</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>ccre_bed_file <span class="ot">&lt;-</span> <span class="st">"T-lymphocyte-2-CD4.bed.gz"</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="read-in-tabular-data" class="level1">
+<h1>read in tabular data</h1>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>bindata <span class="ot">&lt;-</span> <span class="fu">read_delim</span>(<span class="fu">here</span>(<span class="st">"CATlas"</span>,bindata_file))</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>bindata <span class="ot">&lt;-</span> bindata <span class="sc">|&gt;</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="at">seqnames=</span>chr, <span class="at">start=</span>start0, end,</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>         N, GC, tss, ldscore.sum) <span class="sc">|&gt;</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">start =</span> start <span class="sc">+</span> <span class="dv">1</span>)</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>bindata <span class="ot">&lt;-</span> bindata <span class="sc">|&gt;</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(N <span class="sc">==</span> <span class="dv">0</span>, <span class="sc">!</span><span class="fu">is.na</span>(ldscore.sum))</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="co"># save(bindata, file=here("CATlas","bindata.rda"))</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>gwas_tab <span class="ot">&lt;-</span> <span class="fu">read_delim</span>(<span class="fu">here</span>(<span class="st">"CATlas"</span>,gwas_tab_file))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Rows: 830 Columns: 38
+── Column specification ────────────────────────────────────────────────────────────────────────────
+Delimiter: "\t"
+chr  (26): FIRST AUTHOR, JOURNAL, LINK, STUDY, DISEASE/TRAIT, INITIAL SAMPLE SIZE, REPLICATION S...
+dbl  (10): PUBMEDID, CHR_POS, UPSTREAM_GENE_DISTANCE, DOWNSTREAM_GENE_DISTANCE, MERGED, SNP_ID_C...
+date  (2): DATE ADDED TO CATALOG, DATE
+
+ℹ Use `spec()` to retrieve the full column specification for this data.
+ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>gwas_tab <span class="ot">&lt;-</span> gwas_tab <span class="sc">|&gt;</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="at">seqnames=</span>CHR_ID, <span class="at">start=</span>CHR_POS,</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>         <span class="at">gene=</span><span class="st">`</span><span class="at">REPORTED GENE(S)</span><span class="st">`</span>,</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>         <span class="at">snp=</span>SNPS, <span class="at">pvalue=</span><span class="st">`</span><span class="at">P-VALUE</span><span class="st">`</span>) <span class="sc">|&gt;</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(start)) <span class="sc">|&gt;</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">width=</span><span class="dv">1</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="read-in-range-data" class="level1">
+<h1>read in range data</h1>
+<p><code>plyranges</code> is <code>dplyr</code> for genomic range data</p>
+<p><a href="https://genomebiology.biomedcentral.com/articles/10.1186/s13059-018-1597-8">Lee, Cook and Lawrence (2019)</a></p>
+<p>it is part of a project called “tidyomics”, providing an tidy-analysis approach to omics data, using an abstraction layer between the user-facing functions and the data objects.</p>
+<p><a href="https://github.com/tidyomics" class="uri">https://github.com/tidyomics</a></p>
+<p>this means it allows us to operate on genomic range data using familiar verbs like <code>filter</code>, <code>select</code>, <code>mutate</code>, <code>group_by</code>, and <code>summarize</code>.</p>
+<p>we “pipe” between different operations using <code>|&gt;</code> (the base R pipe function). doing <code>x |&gt; f |&gt; g(type="foo")</code> is the same as <code>g( f(x), type="foo" )</code></p>
+<p>there are a number of convenience functions like <code>read_bed</code> or <code>read_narrowpeak</code>, etc.</p>
+<p>there are also packages allowing interfaces to data with gene expression, single cell sequencing, cytometry, etc.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(plyranges)</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>ccre <span class="ot">&lt;-</span> <span class="fu">read_narrowpeaks</span>(<span class="fu">here</span>(<span class="st">"CATlas"</span>,ccre_bed_file))</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="fu">genome</span>(ccre) <span class="ot">&lt;-</span> <span class="st">"hg38"</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>bindata <span class="ot">&lt;-</span> bindata <span class="sc">|&gt;</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as_granges</span>()</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="fu">genome</span>(bindata) <span class="ot">&lt;-</span> <span class="st">"hg38"</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>gwas <span class="ot">&lt;-</span> gwas_tab <span class="sc">|&gt;</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as_granges</span>()</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="fu">genome</span>(gwas) <span class="ot">&lt;-</span> <span class="st">"GRCh38"</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>gwas</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>GRanges object with 566 ranges and 3 metadata columns:
+        seqnames    ranges strand |          gene         snp    pvalue
+           &lt;Rle&gt; &lt;IRanges&gt;  &lt;Rle&gt; |   &lt;character&gt; &lt;character&gt; &lt;numeric&gt;
+    [1]        6  32658698      * |      HLA-DQB1   rs9273368     8e-40
+    [2]       10   6136651      * |        PFKFB3   rs1983890     3e-08
+    [3]        6  90248512      * |         BACH2  rs11755527     1e-07
+    [4]        2  43579243      * |         THADA  rs11888640     2e-06
+    [5]        6  32658698      * |      HLA-DQB1   rs9273368     3e-78
+    ...      ...       ...    ... .           ...         ...       ...
+  [562]       14  56754421      * |    intergenic    rs878889     8e-07
+  [563]       12 120536707      * |   RNF10, COQ5    rs614226     2e-06
+  [564]       20  32943738      * |    intergenic  rs13045180     9e-06
+  [565]       20  60320788      * | RP5-1043L13.1  rs11698685     1e-06
+  [566]        8 122693916      * | RP11-973F15.1   rs4871297     2e-06
+  -------
+  seqinfo: 23 sequences from GRCh38 genome; no seqlengths</code></pre>
+</div>
+</div>
+<p>need to convert to hg38 to perform overlaps:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(GenomeInfoDb)</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="fu">seqlevelsStyle</span>(gwas) <span class="ot">&lt;-</span> <span class="st">"UCSC"</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>gwas <span class="ot">&lt;-</span> gwas <span class="sc">|&gt;</span></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">sortSeqlevels</span>() <span class="sc">|&gt;</span></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">sort</span>()</span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>gwas</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>GRanges object with 566 ranges and 3 metadata columns:
+        seqnames    ranges strand |          gene         snp    pvalue
+           &lt;Rle&gt; &lt;IRanges&gt;  &lt;Rle&gt; |   &lt;character&gt; &lt;character&gt; &lt;numeric&gt;
+    [1]     chr1   2863195      * | TTC34, PRDM16  rs28600853     6e-06
+    [2]     chr1   8347227      * |          &lt;NA&gt;  rs10399665     4e-08
+    [3]     chr1  20693912      * |         KIF17  rs17407280     7e-06
+    [4]     chr1  24970252      * |         RUNX3  rs10751776     3e-08
+    [5]     chr1  35622060      * |         PSMB2    rs574384     2e-08
+    ...      ...       ...    ... .           ...         ...       ...
+  [562]    chr22  39448788      * |          &lt;NA&gt;   rs5757680     5e-11
+  [563]    chr22  39448788      * |          &lt;NA&gt;   rs5757680     8e-12
+  [564]     chrX 136583619      * |        CD40LG   rs2807264     1e-08
+  [565]     chrX 136949968      * |          RBMX  rs12863738     6e-08
+  [566]     chrX 154717327      * |    intergenic   rs2664170     8e-09
+  -------
+  seqinfo: 23 sequences from hg38 genome; no seqlengths</code></pre>
+</div>
+</div>
+<p>our cCRE data look like:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>ccre</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>GRanges object with 51090 ranges and 6 metadata columns:
+          seqnames            ranges strand |            name     score signalValue     pValue
+             &lt;Rle&gt;         &lt;IRanges&gt;  &lt;Rle&gt; |     &lt;character&gt; &lt;numeric&gt;   &lt;numeric&gt;  &lt;numeric&gt;
+      [1]     chr1        9956-10355      * |     NA_peak_156     14247     40.1210 1428.02000
+      [2]     chr1     180581-180980      * |     NA_peak_203      8288     31.9221  832.44100
+      [3]     chr1     633825-634224      * |      NA_peak_80     18041     42.0327 1811.10000
+      [4]     chr1     778526-778925      * |     NA_peak_122      6391     29.8000  643.09400
+      [5]     chr1     778986-779385      * |     NA_peak_77b        77      4.0625    9.81259
+      ...      ...               ...    ... .             ...       ...         ...        ...
+  [51086]     chrY 14340740-14341139      * |  NA_peak_134779       978     19.3609    100.399
+  [51087]     chrY 19566983-19567382      * | NA_peak_125622a      4973     20.6778    500.369
+  [51088]     chrY 19567623-19568022      * |  NA_peak_52071b      1322     10.6361    135.021
+  [51089]     chrY 19744602-19745001      * | NA_peak_130585b      3033     20.9512    306.498
+  [51090]     chrY 20575448-20575847      * |   NA_peak_99120      6186     26.5118    621.457
+              qValue      peak
+           &lt;numeric&gt; &lt;integer&gt;
+      [1] 1424.75000       200
+      [2]  828.85100       200
+      [3] 1804.14000       200
+      [4]  639.12200       200
+      [5]    7.76245       200
+      ...        ...       ...
+  [51086]    97.8555       200
+  [51087]   497.3770       200
+  [51088]   132.2830       200
+  [51089]   303.3280       200
+  [51090]   618.6670       200
+  -------
+  seqinfo: 24 sequences from hg38 genome; no seqlengths</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co"># select just one column, the 'score':</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>ccre_small <span class="ot">&lt;-</span> ccre <span class="sc">|&gt;</span> <span class="fu">select</span>(score)</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>ccre_small</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>GRanges object with 51090 ranges and 1 metadata column:
+          seqnames            ranges strand |     score
+             &lt;Rle&gt;         &lt;IRanges&gt;  &lt;Rle&gt; | &lt;numeric&gt;
+      [1]     chr1        9956-10355      * |     14247
+      [2]     chr1     180581-180980      * |      8288
+      [3]     chr1     633825-634224      * |     18041
+      [4]     chr1     778526-778925      * |      6391
+      [5]     chr1     778986-779385      * |        77
+      ...      ...               ...    ... .       ...
+  [51086]     chrY 14340740-14341139      * |       978
+  [51087]     chrY 19566983-19567382      * |      4973
+  [51088]     chrY 19567623-19568022      * |      1322
+  [51089]     chrY 19744602-19745001      * |      3033
+  [51090]     chrY 20575448-20575847      * |      6186
+  -------
+  seqinfo: 24 sequences from hg38 genome; no seqlengths</code></pre>
+</div>
+</div>
+<p>a rough view on the MHC region:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>mhc <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">seqnames=</span><span class="st">"chr6"</span>, <span class="at">start=</span><span class="fl">29e6</span>, <span class="at">end=</span><span class="fl">33e6</span>) <span class="sc">|&gt;</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as_granges</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="some-overlap-stats" class="level1">
+<h1>some overlap stats</h1>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="fu">length</span>(gwas)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 566</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>gwas <span class="sc">|&gt;</span></span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter_by_overlaps</span>(mhc)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>GRanges object with 44 ranges and 3 metadata columns:
+       seqnames    ranges strand |        gene         snp    pvalue
+          &lt;Rle&gt; &lt;IRanges&gt;  &lt;Rle&gt; | &lt;character&gt; &lt;character&gt; &lt;numeric&gt;
+   [1]     chr6  29058810      * |       OR2W1 rs114631266     2e-06
+   [2]     chr6  29931850      * |       HLA-A   rs2471863     8e-07
+   [3]     chr6  29943253      * |  MHC, HLA-A   rs9260151     8e-08
+   [4]     chr6  29946109      * |       HLA-A  rs34941730     2e-09
+   [5]     chr6  30110498      * |      TRIM31   rs2523989     2e-08
+   ...      ...       ...    ... .         ...         ...       ...
+  [40]     chr6  32714422      * |    HLA-DQA2  rs35122968     4e-11
+  [41]     chr6  32714617      * |    HLA-DQA2   rs3997848     2e-14
+  [42]     chr6  32830954      * |        TAP2   rs1015166     4e-22
+  [43]     chr6  32836637      * |        TAP2    rs241427     4e-06
+  [44]     chr6  32838614      * |        TAP2   rs4148870     2e-06
+  -------
+  seqinfo: 23 sequences from hg38 genome; no seqlengths</code></pre>
+</div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>gwas <span class="sc">|&gt;</span></span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">join_overlap_left</span>(ccre_small, <span class="at">maxgap=</span><span class="fl">1e4</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>GRanges object with 1009 ranges and 4 metadata columns:
+         seqnames    ranges strand |          gene         snp    pvalue     score
+            &lt;Rle&gt; &lt;IRanges&gt;  &lt;Rle&gt; |   &lt;character&gt; &lt;character&gt; &lt;numeric&gt; &lt;numeric&gt;
+     [1]     chr1   2863195      * | TTC34, PRDM16  rs28600853     6e-06        NA
+     [2]     chr1   8347227      * |          &lt;NA&gt;  rs10399665     4e-08      2259
+     [3]     chr1  20693912      * |         KIF17  rs17407280     7e-06      1941
+     [4]     chr1  20693912      * |         KIF17  rs17407280     7e-06       262
+     [5]     chr1  24970252      * |         RUNX3  rs10751776     3e-08        78
+     ...      ...       ...    ... .           ...         ...       ...       ...
+  [1005]     chrX 136949968      * |          RBMX  rs12863738     6e-08      1645
+  [1006]     chrX 154717327      * |    intergenic   rs2664170     8e-09       546
+  [1007]     chrX 154717327      * |    intergenic   rs2664170     8e-09       176
+  [1008]     chrX 154717327      * |    intergenic   rs2664170     8e-09      1636
+  [1009]     chrX 154717327      * |    intergenic   rs2664170     8e-09       197
+  -------
+  seqinfo: 23 sequences from hg38 genome; no seqlengths</code></pre>
+</div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>gwas <span class="sc">|&gt;</span></span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">join_overlap_left</span>(ccre_small, <span class="at">maxgap=</span><span class="fl">1e4</span>) <span class="sc">|&gt;</span></span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">duplicated</span>(snp)) <span class="sc">|&gt;</span></span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">nhit =</span> <span class="fu">sum</span>(<span class="fu">is.na</span>(score)))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>DataFrame with 1 row and 1 column
+       nhit
+  &lt;integer&gt;
+1       224</code></pre>
+</div>
+</div>
+</section>
+<section id="plotgardener" class="level1">
+<h1><code>plotgardener</code></h1>
+<p>plotgardener provides “Coordinate-Based Genomic Visualization Package for R”</p>
+<p><a href="https://phanstiellab.github.io/plotgardener/" class="uri">https://phanstiellab.github.io/plotgardener/</a></p>
+<p><a href="https://academic.oup.com/bioinformatics/article/38/7/2042/6522111">Kramer N et al.&nbsp;(2022)</a></p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(plotgardener)</span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>gwas_for_plot <span class="ot">&lt;-</span> gwas <span class="sc">|&gt;</span></span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">join_overlap_left</span>(ccre_small, <span class="at">maxgap=</span><span class="fl">1e4</span>) <span class="sc">|&gt;</span></span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">duplicated</span>(snp))</span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>gwas_for_plot <span class="ot">&lt;-</span> gwas_for_plot <span class="sc">|&gt;</span></span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as_tibble</span>() <span class="sc">|&gt;</span></span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">rename</span>(<span class="at">pos=</span>start) <span class="sc">|&gt;</span></span>
+<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">chrom =</span> <span class="fu">as.character</span>(seqnames)) <span class="sc">|&gt;</span></span>
+<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">p =</span> <span class="fu">pmax</span>(pvalue, <span class="fl">1e-50</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">ccre =</span> <span class="fu">factor</span>(<span class="fu">case_when</span>(</span>
+<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a>           <span class="fu">is.na</span>(score) <span class="sc">~</span> <span class="st">"no"</span>,</span>
+<span id="cb26-12"><a href="#cb26-12" aria-hidden="true" tabindex="-1"></a>           <span class="cn">TRUE</span> <span class="sc">~</span> <span class="st">"yes"</span>)))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="plot-1" class="level1">
+<h1>plot #1</h1>
+<div class="cell">
+<div class="cell-output cell-output-stderr">
+<pre><code>manhattan[manhattan1]</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>genomeLabel[genomeLabel1]</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>yaxis[yaxis1]</code></pre>
+</div>
+<div class="cell-output-display">
+<p><img src="analysis_files/figure-html/plot1-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+</section>
+<section id="plot-2" class="level1">
+<h1>plot #2</h1>
+<div class="cell">
+<div class="cell-output cell-output-stderr">
+<pre><code>manhattan[manhattan1]</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>genomeLabel[genomeLabel1]</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>yaxis[yaxis1]</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>legend[legend1]</code></pre>
+</div>
+<div class="cell-output-display">
+<p><img src="analysis_files/figure-html/plot2-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+</section>
+<section id="matching-with-nullranges" class="level1">
+<h1>matching with <code>nullranges</code></h1>
+<p><code>nullranges</code> provides methods for construction of sets of “null regions”, to be used in enrichment analyses</p>
+<p>it has two branches of functionality:</p>
+<ul>
+<li>matching <a href="https://academic.oup.com/bioinformatics/article/39/5/btad197/7135828">Davis et al (2023)</a></li>
+<li>bootstrapping <a href="https://academic.oup.com/bioinformatics/article/39/5/btad190/7115835">Wu et al (2023)</a></li>
+</ul>
+<p>here, we will demonstring creating a null set by matching on covariates</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb34"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a>bindata <span class="ot">&lt;-</span> bindata <span class="sc">|&gt;</span></span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">logLDS =</span> <span class="fu">log10</span>(ldscore.sum<span class="sc">+</span><span class="dv">1</span>))</span>
+<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a>gwas_plus <span class="ot">&lt;-</span> gwas <span class="sc">|&gt;</span></span>
+<span id="cb34-5"><a href="#cb34-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">join_overlap_left</span>(bindata) <span class="sc">|&gt;</span></span>
+<span id="cb34-6"><a href="#cb34-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(GC))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb35"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a>gwas_plus <span class="sc">|&gt;</span></span>
+<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(seqnames <span class="sc">%in%</span> <span class="fu">paste0</span>(<span class="st">"chr"</span>,<span class="dv">1</span><span class="sc">:</span><span class="dv">8</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as_tibble</span>() <span class="sc">|&gt;</span></span>
+<span id="cb35-5"><a href="#cb35-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(seqnames, logLDS)) <span class="sc">+</span></span>
+<span id="cb35-6"><a href="#cb35-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_boxplot</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<p><img src="analysis_files/figure-html/LDbox-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+<p>make a pool to draw from:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb36"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">5</span>)</span>
+<span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a>pool <span class="ot">&lt;-</span> bindata <span class="sc">|&gt;</span></span>
+<span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter_by_non_overlaps</span>(gwas, <span class="at">maxgap=</span><span class="fl">1e4</span>) <span class="sc">|&gt;</span></span>
+<span id="cb36-4"><a href="#cb36-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(GC)) <span class="sc">|&gt;</span></span>
+<span id="cb36-5"><a href="#cb36-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">slice</span>(<span class="fu">sample</span>(<span class="fu">n</span>(), <span class="fl">1e5</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb37"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(nullranges)</span>
+<span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a>m <span class="ot">&lt;-</span> <span class="fu">matchRanges</span>(gwas_plus, pool, <span class="sc">~</span>GC <span class="sc">+</span> logLDS)</span>
+<span id="cb37-3"><a href="#cb37-3" aria-hidden="true" tabindex="-1"></a><span class="fu">length</span>(gwas_plus)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 561</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb39"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a><span class="fu">length</span>(<span class="fu">matched</span>(m))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 561</code></pre>
+</div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb41"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plotCovariate</span>(m, <span class="at">covar=</span><span class="st">"GC"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<p><img src="analysis_files/figure-html/plotcovariates-1.png" class="img-fluid" width="672"></p>
+</div>
+<div class="sourceCode cell-code" id="cb42"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plotCovariate</span>(m, <span class="at">covar=</span><span class="st">"logLDS"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<p><img src="analysis_files/figure-html/plotcovariates-2.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb43"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a>gwas_and_matched <span class="ot">&lt;-</span> <span class="fu">bind_ranges</span>(</span>
+<span id="cb43-2"><a href="#cb43-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">gwas=</span>gwas_plus,</span>
+<span id="cb43-3"><a href="#cb43-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">matched=</span><span class="fu">matched</span>(m),</span>
+<span id="cb43-4"><a href="#cb43-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">.id=</span><span class="st">"origin"</span></span>
+<span id="cb43-5"><a href="#cb43-5" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb44"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a>gwas_and_matched <span class="sc">|&gt;</span></span>
+<span id="cb44-2"><a href="#cb44-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">join_overlap_left</span>(ccre, <span class="at">maxgap=</span><span class="fl">1e4</span>) <span class="sc">|&gt;</span></span>
+<span id="cb44-3"><a href="#cb44-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(origin) <span class="sc">|&gt;</span></span>
+<span id="cb44-4"><a href="#cb44-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">hits =</span> <span class="fu">sum</span>(<span class="sc">!</span><span class="fu">is.na</span>(score)))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>DataFrame with 2 rows and 2 columns
+   origin      hits
+    &lt;Rle&gt; &lt;integer&gt;
+1    gwas       746
+2 matched       269</code></pre>
+</div>
+</div>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn) {
+    const config = {
+      allowHTML: true,
+      content: contentFn,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start'
+    };
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+</body></html>

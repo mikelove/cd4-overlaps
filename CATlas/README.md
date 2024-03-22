@@ -22,4 +22,4 @@ We then download Type I diabetes GWAS loci from GWAS Catalog:
 
 https://www.ebi.ac.uk/gwas/efotraits/MONDO_0005147
 
-The rest of the analysis is performed in the script `analysis.R`.
+The rest of the analysis is performed in the script `analysis.qmd`.

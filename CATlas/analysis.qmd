@@ -1,13 +1,48 @@
+---
+title: "Genomic overlap stats with `plyranges`"
+format:
+  html:
+    toc: true
+    css: styles.css
+---
+
+# task
+
+Are Type 1 diabetes GWAS loci near to CD4+ accessibility peaks?
+
+We download T1 lymphocyte 2 (CD4+) cells from CATlas:
+
+<http://catlas.org/humanenhancer/>
+
+> Zhang K, et al. 
+> A single-cell atlas of chromatin accessibility in the 
+> human genome. Cell. 2021 Nov 24;184(24):5985-6001.e19. 
+> doi: <https://doi.org/10.1016/j.cell.2021.10.024>.
+> PMID: 34774128; PMCID: PMC8664161.
+
+We then download Type I diabetes GWAS loci from GWAS Catalog:
+
+<https://www.ebi.ac.uk/gwas/efotraits/MONDO_0005147>
+
+Finally, Pat Sullivan provides metadata on the genome in 1kb bins.
+
+# setup
+
+```{r message=FALSE}
 library(here)
 library(readr)
 library(dplyr)
+```
 
+```{r}
 bindata_file <- "bindata.1000.hg38.tsv.gz"
 gwas_tab_file <- "gwas-t1d-031824-EFO_0009756.tsv.gz"
 ccre_bed_file <- "T-lymphocyte-2-CD4.bed.gz"
+```
 
 # read in tabular data
 
+```{r eval=FALSE}
 bindata <- read_delim(here("CATlas",bindata_file))
 bindata <- bindata |>
   select(seqnames=chr, start=start0, end,
@@ -15,7 +50,14 @@ bindata <- bindata |>
   mutate(start = start + 1)
 bindata <- bindata |>
   filter(N == 0, !is.na(ldscore.sum))
+# save(bindata, file=here("CATlas","bindata.rda"))
+```
 
+```{r echo=FALSE}
+load(here("CATlas","bindata.rda"))
+```
+
+```{r}
 gwas_tab <- read_delim(here("CATlas",gwas_tab_file))
 gwas_tab <- gwas_tab |>
   select(seqnames=CHR_ID, start=CHR_POS,
@@ -23,49 +65,105 @@ gwas_tab <- gwas_tab |>
          snp=SNPS, pvalue=`P-VALUE`) |>
   filter(!is.na(start)) |>
   mutate(width=1)
+```
 
-# read in / create range data
+# read in range data
 
+`plyranges` is `dplyr` for genomic range data
+
+[Lee, Cook and Lawrence (2019)](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-018-1597-8)
+
+it is part of a project called "tidyomics", providing an tidy-analysis approach to omics data, using an abstraction layer between the user-facing functions and the data objects.
+
+<https://github.com/tidyomics>
+
+this means it allows us to operate on genomic range data using familiar verbs like `filter`, `select`, `mutate`, `group_by`, and `summarize`.
+
+we "pipe" between different operations using `|>` (the base R pipe function). doing `x |> f |> g(type="foo")` is the same as `g( f(x), type="foo" )`
+
+there are a number of convenience functions like `read_bed` or `read_narrowpeak`, etc.
+
+there are also packages allowing interfaces to data with gene expression, single cell sequencing, cytometry, etc.
+
+```{r message=FALSE, warning=FALSE}
 library(plyranges)
 ccre <- read_narrowpeaks(here("CATlas",ccre_bed_file))
 genome(ccre) <- "hg38"
+```
 
+```{r}
 bindata <- bindata |>
   as_granges()
 genome(bindata) <- "hg38"
+```
 
+```{r}
 gwas <- gwas_tab |>
   as_granges()
 genome(gwas) <- "GRCh38"
+gwas
+```
 
+need to convert to hg38 to perform overlaps:
+
+```{r}
 library(GenomeInfoDb)
 seqlevelsStyle(gwas) <- "UCSC"
 gwas <- gwas |>
   sortSeqlevels() |>
   sort()
+gwas
+```
 
+our cCRE data look like:
+
+```{r}
+ccre
+# select just one column, the 'score':
 ccre_small <- ccre |> select(score)
+ccre_small
+```
 
+a rough view on the MHC region:
+
+```{r}
 mhc <- data.frame(seqnames="chr6", start=29e6, end=33e6) |>
   as_granges()
+```
 
 # some overlap stats
 
+```{r}
+length(gwas)
 gwas |>
   filter_by_overlaps(mhc)
+```
 
+```{r}
+gwas |>
+  join_overlap_left(ccre_small, maxgap=1e4)
+```
+
+```{r}
 gwas |>
   join_overlap_left(ccre_small, maxgap=1e4) |>
   filter(!duplicated(snp)) |>
   summarize(nhit = sum(is.na(score)))
+```
 
-# make a plot of the data
+# `plotgardener`
 
+plotgardener provides "Coordinate-Based Genomic Visualization Package for R"
+
+<https://phanstiellab.github.io/plotgardener/>
+
+[Kramer N et al. (2022)](https://academic.oup.com/bioinformatics/article/38/7/2042/6522111)
+
+```{r message=FALSE, warning=FALSE}
 library(plotgardener)
 gwas_for_plot <- gwas |>
   join_overlap_left(ccre_small, maxgap=1e4) |>
   filter(!duplicated(snp))
-
 gwas_for_plot <- gwas_for_plot |>
   as_tibble() |>
   dplyr::rename(pos=start) |>
@@ -74,9 +172,11 @@ gwas_for_plot <- gwas_for_plot |>
   mutate(ccre = factor(case_when(
            is.na(score) ~ "no",
            TRUE ~ "yes")))
+```
 
-# plot1
+# plot #1
 
+```{r plot1, echo=FALSE}
 pageCreate(width = 5, height = 3)
 manh <- plotManhattan(
   data = gwas_for_plot, assembly = "hg38",
@@ -87,11 +187,14 @@ annoGenomeLabel(plot = manh, x = 0.5,
                 y = 2.5, fontsize=8)
 annoYaxis(plot = manh, at = 0:10 * 5,
           axisLine = TRUE, fontsize = 8)
+```
 
-# plot2
+# plot #2
 
-# try again with cCRE overlap coloring
-mycolor <- function(n) RColorBrewer::brewer.pal(3,"Dark2")[1:n]
+```{r plot2, echo=FALSE}
+mycolor <- function(n) {
+  RColorBrewer::brewer.pal(3,"Dark2")[1:n]
+}
 pageCreate(width = 5, height = 3, showGuides = FALSE)
 manh <- plotManhattan(
   data = gwas_for_plot, assembly = "hg38",
@@ -104,49 +207,76 @@ annoGenomeLabel(plot = manh, x = 0.5,
                 y = 2.5, fontsize=8)
 annoYaxis(plot = manh, at = 0:10 * 5,
           axisLine = TRUE, fontsize = 8)
-
 plotLegend(
   legend = c("no", "yes"),
   fill = mycolor(2),
   x = 3.5, y = .5, width=1, height=.5,
   pch = c(20,20), border = TRUE
 )
+```
 
-# what about matching on covariates
+# matching with `nullranges`
 
+`nullranges` provides methods for construction of sets of "null regions", to be used in enrichment analyses
+
+it has two branches of functionality:
+
+* matching [Davis et al (2023)](https://academic.oup.com/bioinformatics/article/39/5/btad197/7135828)
+* bootstrapping [Wu et al (2023)](https://academic.oup.com/bioinformatics/article/39/5/btad190/7115835)
+
+here, we will demonstring creating a null set by matching on covariates
+
+```{r}
 bindata <- bindata |>
   mutate(logLDS = log10(ldscore.sum+1))
 
 gwas_plus <- gwas |>
   join_overlap_left(bindata) |>
   filter(!is.na(GC))
+```
 
+```{r LDbox, warning=FALSE}
 library(ggplot2)
 gwas_plus |>
   filter(seqnames %in% paste0("chr",1:8)) |>
   as_tibble() |>
   ggplot(aes(seqnames, logLDS)) +
   geom_boxplot()
+```
 
+make a pool to draw from:
+
+```{r}
 set.seed(5)
 pool <- bindata |>
   filter_by_non_overlaps(gwas, maxgap=1e4) |>
   filter(!is.na(GC)) |>
   slice(sample(n(), 1e5))
+```
 
+```{r warning=FALSE}
 library(nullranges)
 m <- matchRanges(gwas_plus, pool, ~GC + logLDS)
+length(gwas_plus)
+length(matched(m))
+```
 
+```{r plotcovariates}
 plotCovariate(m, covar="GC")
 plotCovariate(m, covar="logLDS")
+```
 
+```{r}
 gwas_and_matched <- bind_ranges(
   gwas=gwas_plus,
   matched=matched(m),
   .id="origin"
 )
+```
 
+```{r}
 gwas_and_matched |>
   join_overlap_left(ccre, maxgap=1e4) |>
   group_by(origin) |>
   summarize(hits = sum(!is.na(score)))
+```
