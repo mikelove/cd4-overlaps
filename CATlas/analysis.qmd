@@ -10,7 +10,7 @@ format:
 
 Are Type 1 diabetes GWAS loci near to CD4+ accessibility peaks?
 
-We download T1 lymphocyte 2 (CD4+) cells from CATlas:
+We download T lymphocyte 2 (CD4+) cells from CATlas:
 
 <http://catlas.org/humanenhancer/>
 
